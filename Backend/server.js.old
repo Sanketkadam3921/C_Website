@@ -1,0 +1,51 @@
+const express = require("express");
+const Razorpay = require("razorpay");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const crypto = require("crypto");
+
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+
+// Razorpay instance
+const razorpay = new Razorpay({
+  key_id: "rzp_test_Rmcxri4JBDSGKN",
+  key_secret: "0kbHafhKvDHoquU59G38Qn9D",
+});
+
+// 1️⃣ Create order API
+app.post("/create-order", async (req, res) => {
+  const { amount } = req.body;
+
+  const options = {
+    amount: amount * 100,
+    currency: "INR",
+    receipt: "receipt_" + Date.now(),
+  };
+
+  const order = await razorpay.orders.create(options);
+  res.json(order);
+});
+
+// 2️⃣ Verify payment API
+app.post("/verify-payment", (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+    req.body;
+
+  const sign = razorpay_order_id + "|" + razorpay_payment_id;
+
+  const expectedSign = crypto
+    .createHmac("sha256", razorpay.key_secret)
+    .update(sign.toString())
+    .digest("hex");
+
+  if (expectedSign === razorpay_signature) {
+    res.json({ success: true });
+  } else {
+    res.json({ success: false });
+  }
+});
+
+// Start server
+app.listen(5000, () => console.log("Backend running on port 5000"));
